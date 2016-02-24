@@ -6,7 +6,7 @@
 (enable-console-print!)
 
 (defn generate-minefield []
-  [[{:mine? true :flipped? false}]])
+  (vec (repeat 2 (vec (repeat 2 {:mine? true :flipped? false})))))
 
 (def app-state (atom (generate-minefield)))
 
@@ -35,9 +35,10 @@
 (defui Minefield
   Object
   (render [this]
-    (let [[row column] [0 0]
-          cell (-> (om/props this) (nth row) (nth column))]
       (dom/div nil
+    (for [row (range (count @app-state))
+          column (range (count (nth @app-state row)))
+          :let [cell (-> (om/props this) (nth row) (nth column))]]
                (make-button cell row column)))))
 
 (def reconciler
