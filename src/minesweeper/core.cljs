@@ -6,32 +6,39 @@
 (enable-console-print!)
 
 (defn generate-minefield []
-  [{:mine? false :flipped? false}])
+  [[{:mine? true :flipped? false}]])
 
 (def app-state (atom (generate-minefield)))
+
+(defn lost? []
+  (some? #(and (:flipped? %) (:mine? %)) (flatten @app-state)))
+
+(defn won? []
+  (every? #(or (:flipped? %) (:mine? %)) (flatten @app-state)))
 
 (defn render-button [cell]
   (println cell)
   (cond
    (not (:flipped? cell)) "?"
-   (not (:mine? cell)) "☺"))
+   (not (:mine? cell)) "☺"
+   (:mine? cell) "☠"))
 
-
-(defn make-button [cell pos]
+(defn make-button [cell row column]
   (dom/button
    #js {:onClick
         (fn [e]
-          (swap! app-state update-in [pos :flipped?] (constantly true)))}
+          (swap! app-state update-in [row column :flipped?] (constantly true))
+          (if (lost?) (println "You lost!")
+            (when (won?) (println "You won!"))))}
    (render-button cell)))
-
 
 (defui Minefield
   Object
   (render [this]
-    (let [pos 0
-          cell (-> (om/props this) (nth pos))]
+    (let [[row column] [0 0]
+          cell (-> (om/props this) (nth row) (nth column))]
       (dom/div nil
-               (make-button cell pos)))))
+               (make-button cell row column)))))
 
 (def reconciler
   (om/reconciler {:state app-state}))
