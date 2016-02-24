@@ -23,11 +23,11 @@
    (not (:mine? cell)) "☺"
    (:mine? cell) "☠"))
 
-(defn make-button [cell row column]
+(defn make-button [cell row-index col-index]
   (dom/button
    #js {:onClick
         (fn [e]
-          (swap! app-state update-in [row column :flipped?] (constantly true))
+          (swap! app-state update-in [row-index col-index :flipped?] (constantly true))
           (if (lost?) (println "You lost!")
             (when (won?) (println "You won!"))))}
    (render-button cell)))
@@ -35,11 +35,14 @@
 (defui Minefield
   Object
   (render [this]
-      (dom/div nil
-    (for [row (range (count @app-state))
-          column (range (count (nth @app-state row)))
-          :let [cell (-> (om/props this) (nth row) (nth column))]]
-               (make-button cell row column)))))
+          (dom/div nil
+                   (->> (range (count @app-state))
+                        (map (fn [row-index]
+                               (dom/div nil
+                                        (->> (range (count (nth @app-state row-index)))
+                                             (map (fn [col-index]
+                                                    (let [cell (-> (om/props this) (nth row-index) (nth col-index))]
+                                                      (make-button cell row-index col-index))))))))))))
 
 (def reconciler
   (om/reconciler {:state app-state}))
