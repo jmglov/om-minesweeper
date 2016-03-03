@@ -5,8 +5,12 @@
 
 (enable-console-print!)
 
+(def minefield-width 8)
+
+(def minefield-height 8)
+
 (defn generate-minefield []
-  (vec (repeat 2 (vec (repeat 2 {:mine? true :flipped? false})))))
+  (vec (repeat minefield-height (vec (repeat minefield-width {:mine? true :flipped? false})))))
 
 (def app-state (atom (generate-minefield)))
 
@@ -28,8 +32,8 @@
    #js {:onClick
         (fn [e]
           (swap! app-state update-in [row-index col-index :flipped?] (constantly true))
-          (if (lost?) (println "You lost!")
-            (when (won?) (println "You won!"))))}
+          (if (lost?) (window/alert "You lost!")
+            (when (won?) (window/alert "You won!"))))}
    (render-button cell)))
 
 (defui Minefield
