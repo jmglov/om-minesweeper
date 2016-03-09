@@ -15,7 +15,7 @@
 (def app-state (atom (generate-minefield)))
 
 (defn lost? []
-  (some? #(and (:flipped? %) (:mine? %)) (flatten @app-state)))
+  (some #(and (:flipped? %) (:mine? %)) (flatten @app-state)))
 
 (defn won? []
   (every? #(or (:flipped? %) (:mine? %)) (flatten @app-state)))
@@ -32,21 +32,26 @@
    #js {:onClick
         (fn [e]
           (swap! app-state update-in [row-index col-index :flipped?] (constantly true))
-          (if (lost?) (window/alert "You lost!")
-            (when (won?) (window/alert "You won!"))))}
+          (if (lost?) (js/alert "You lost!")
+            (when (won?) (js/alert "You won!"))))}
    (render-button cell)))
+
+(defn make-cell [props row-index col-index]
+  (let [cell (-> props (nth row-index) (nth col-index))]
+    (make-button cell row-index col-index)))
+
+(defn make-row [props row-index]
+  (dom/div nil
+    (->> (range (count (nth props row-index)))
+         (map #(make-cell props row-index %)))))
 
 (defui Minefield
   Object
   (render [this]
-          (dom/div nil
-                   (->> (range (count @app-state))
-                        (map (fn [row-index]
-                               (dom/div nil
-                                        (->> (range (count (nth @app-state row-index)))
-                                             (map (fn [col-index]
-                                                    (let [cell (-> (om/props this) (nth row-index) (nth col-index))]
-                                                      (make-button cell row-index col-index))))))))))))
+          (let [props (om/props this)]
+               (dom/div nil
+                  (->> (range (count props))
+                       (map #(make-row props %)))))))
 
 (def reconciler
   (om/reconciler {:state app-state}))
