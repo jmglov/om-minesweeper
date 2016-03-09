@@ -5,14 +5,21 @@
 
 (enable-console-print!)
 
-(def minefield-width 8)
+(def mine-percentage 0.25)
 
+(def minefield-width 8)
 (def minefield-height 8)
 
-(defn generate-minefield []
-  (vec (repeat minefield-height (vec (repeat minefield-width {:mine? true :flipped? false})))))
+(defn mine? []
+  (< (rand) mine-percentage))
 
-(def app-state (atom (generate-minefield)))
+(defn generate-minefield []
+  (vec (for [_ (range minefield-height)]
+         (vec (for [_ (range minefield-width)]
+                {:mine? (mine?) :flipped? false})))))
+
+(def app-state
+  (atom (generate-minefield)))
 
 (defn lost? []
   (some #(and (:flipped? %) (:mine? %)) (flatten @app-state)))
