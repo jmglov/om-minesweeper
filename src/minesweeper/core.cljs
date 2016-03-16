@@ -25,11 +25,11 @@
         :when (not= [x y] coord)]
      coord))
 
-(defn count-adjacent-mines [coord minefield]
+(defn count-adjacent-mines [minefield coord]
   (->> coord
        neighbours
        (filter #(:mine? (get-in minefield %)))
-       count))   
+       count))
 
 (def app-state
   (atom (generate-minefield)))
@@ -40,38 +40,38 @@
 (defn won? []
   (every? #(or (:flipped? %) (:mine? %)) (flatten @app-state)))
 
-(defn render-button [cell]
-  (println cell)
-  (cond
-   (not (:flipped? cell)) "?"
-   (not (:mine? cell)) "☺"
-   (:mine? cell) "☠"))
+(defn render-button [minefield coord]
+  (let [cell (get-in minefield coord)]
+   (cond
+    (not (:flipped? cell)) "?"
+    (not (:mine? cell)) "☺"
+    (:mine? cell) "☠")))
 
-(defn make-button [cell row-index col-index]
+(defn make-button [minefield cell row-index col-index]
   (dom/button
    #js {:onClick
         (fn [e]
           (swap! app-state update-in [row-index col-index :flipped?] (constantly true))
           (if (lost?) (js/alert "You lost!")
             (when (won?) (js/alert "You won!"))))}
-   (render-button cell)))
+   (render-button minefield [row-index col-index])))
 
-(defn make-cell [props row-index col-index]
-  (let [cell (-> props (nth row-index) (nth col-index))]
-    (make-button cell row-index col-index)))
+(defn make-cell [minefield row-index col-index]
+  (let [cell (-> minefield (nth row-index) (nth col-index))]
+    (make-button minefield cell row-index col-index)))
 
-(defn make-row [props row-index]
+(defn make-row [minefield row-index]
   (dom/div nil
-    (->> (range (count (nth props row-index)))
-         (map #(make-cell props row-index %)))))
+    (->> (range (count (nth minefield row-index)))
+         (map #(make-cell minefield row-index %)))))
 
 (defui Minefield
   Object
   (render [this]
-    (let [props (om/props this)]
+    (let [minefield (om/props this)]
       (dom/div nil
-        (->> (range (count props))
-             (map #(make-row props %)))))))
+        (->> (range (count minefield))
+             (map #(make-row minefield %)))))))
 
 (def reconciler
   (om/reconciler {:state app-state}))
