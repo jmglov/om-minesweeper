@@ -44,7 +44,7 @@
   (let [cell (get-in minefield coord)]
    (cond
     (not (:flipped? cell)) "?"
-    (not (:mine? cell)) "☺"
+    (not (:mine? cell)) (count-adjacent-mines minefield coord)
     (:mine? cell) "☠")))
 
 (defn make-button [minefield cell row-index col-index]
