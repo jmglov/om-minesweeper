@@ -14,9 +14,22 @@
   (< (rand) mine-percentage))
 
 (defn generate-minefield []
-  (vec (for [_ (range minefield-height)]
-         (vec (for [_ (range minefield-width)]
-                {:mine? (mine?) :flipped? false})))))
+ (vec (for [_ (range minefield-height)]
+        (vec (for [_ (range minefield-width)]
+               {:mine? (mine?) :flipped? false})))))
+
+(defn neighbours [[x y]]
+  (for [cand-x [(dec x) x (inc x)]
+        cand-y [(dec y) y (inc y)]
+        :let [coord [cand-x cand-y]]
+        :when (not= [x y] coord)]
+     coord))
+
+(defn count-adjacent-mines [coord minefield]
+  (->> coord
+       neighbours
+       (filter #(:mine? (get-in minefield %)))
+       count))   
 
 (def app-state
   (atom (generate-minefield)))
@@ -55,10 +68,10 @@
 (defui Minefield
   Object
   (render [this]
-          (let [props (om/props this)]
-               (dom/div nil
-                  (->> (range (count props))
-                       (map #(make-row props %)))))))
+    (let [props (om/props this)]
+      (dom/div nil
+        (->> (range (count props))
+             (map #(make-row props %)))))))
 
 (def reconciler
   (om/reconciler {:state app-state}))
