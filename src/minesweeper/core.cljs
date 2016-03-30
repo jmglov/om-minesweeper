@@ -5,10 +5,10 @@
 
 (enable-console-print!)
 
-(def mine-percentage 0.10)
+(def mine-percentage 0)
 
-(def minefield-width 8)
-(def minefield-height 8)
+(def minefield-width 2)
+(def minefield-height 2)
 
 (defn mine? []
   (< (rand) mine-percentage))
@@ -18,16 +18,17 @@
         (vec (for [_ (range minefield-width)]
                {:mine? (mine?) :flipped? false})))))
 
-(defn neighbour-coords [[x y]]
+(defn neighbour-coords [minefield [x y]]
   (for [cand-x [(dec x) x (inc x)]
         cand-y [(dec y) y (inc y)]
         :let [coord [cand-x cand-y]]
-        :when (not= [x y] coord)]
+        :when (not= [x y] coord)
+        :when (get-in minefield coord)]
      coord))
 
 (defn count-adjacent-mines [minefield coord]
   (->> coord
-       neighbour-coords
+       (neighbour-coords minefield)
        (filter #(:mine? (get-in minefield %)))
        count))
 
@@ -40,8 +41,12 @@
 (defn won? []
   (every? #(or (:flipped? %) (:mine? %)) (flatten @app-state)))
 
-(defn flip-cell [minefield [x y]]
-  (swap! app-state update-in [x y :flipped?] (constantly true)))
+(defn flip-cell! [minefield [x y]]
+  (swap! app-state update-in [x y :flipped?] (constantly true))
+  (when (= (count-adjacent-mines minefield [x y]) 0)
+    (doseq [neighbour-coord (neighbour-coords minefield [x y])]
+      (when (not= :flipped? (get-in @app-state [x y]))
+        (flip-cell! @app-state neighbour-coord)))))
 
 (defn cell-text [minefield coord]
   (let [cell (get-in minefield coord)]
@@ -54,7 +59,7 @@
   (dom/button
    #js {:onClick
         (fn [e]
-          (flip-cell minefield [x y])
+          (flip-cell! minefield [x y])
           (if (lost?) (js/alert "You lost!")
             (when (won?) (js/alert "You won!"))))}
    (cell-text minefield [x y])))
