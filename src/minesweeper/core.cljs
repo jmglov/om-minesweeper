@@ -5,7 +5,7 @@
 
 (enable-console-print!)
 
-(def mine-percentage 0.25)
+(def mine-percentage 0.10)
 
 (def minefield-width 8)
 (def minefield-height 8)
@@ -18,7 +18,7 @@
         (vec (for [_ (range minefield-width)]
                {:mine? (mine?) :flipped? false})))))
 
-(defn neighbours [[x y]]
+(defn neighbour-coords [[x y]]
   (for [cand-x [(dec x) x (inc x)]
         cand-y [(dec y) y (inc y)]
         :let [coord [cand-x cand-y]]
@@ -27,7 +27,7 @@
 
 (defn count-adjacent-mines [minefield coord]
   (->> coord
-       neighbours
+       neighbour-coords
        (filter #(:mine? (get-in minefield %)))
        count))
 
@@ -43,7 +43,7 @@
 (defn render-button [minefield coord]
   (let [cell (get-in minefield coord)]
    (cond
-    (not (:flipped? cell)) "?"
+    (not (:flipped? cell)) "_"
     (not (:mine? cell)) (count-adjacent-mines minefield coord)
     (:mine? cell) "☠")))
 
