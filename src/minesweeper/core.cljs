@@ -40,30 +40,33 @@
 (defn won? []
   (every? #(or (:flipped? %) (:mine? %)) (flatten @app-state)))
 
-(defn render-button [minefield coord]
+(defn flip-cell [minefield [x y]]
+  (swap! app-state update-in [x y :flipped?] (constantly true)))
+
+(defn cell-text [minefield coord]
   (let [cell (get-in minefield coord)]
    (cond
     (not (:flipped? cell)) "_"
     (not (:mine? cell)) (count-adjacent-mines minefield coord)
     (:mine? cell) "☠")))
 
-(defn make-button [minefield cell row-index col-index]
+(defn make-button [minefield cell x y]
   (dom/button
    #js {:onClick
         (fn [e]
-          (swap! app-state update-in [row-index col-index :flipped?] (constantly true))
+          (flip-cell minefield [x y])
           (if (lost?) (js/alert "You lost!")
             (when (won?) (js/alert "You won!"))))}
-   (render-button minefield [row-index col-index])))
+   (cell-text minefield [x y])))
 
-(defn make-cell [minefield row-index col-index]
-  (let [cell (-> minefield (nth row-index) (nth col-index))]
-    (make-button minefield cell row-index col-index)))
+(defn make-cell [minefield x y]
+  (let [cell (-> minefield (nth x) (nth y))]
+    (make-button minefield cell x y)))
 
-(defn make-row [minefield row-index]
+(defn make-row [minefield x]
   (dom/div nil
-    (->> (range (count (nth minefield row-index)))
-         (map #(make-cell minefield row-index %)))))
+    (->> (range (count (nth minefield x)))
+         (map #(make-cell minefield x %)))))
 
 (defui Minefield
   Object
