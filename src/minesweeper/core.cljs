@@ -14,7 +14,7 @@
   (< (rand) mine-percentage))
 
 (defn generate-minefield []
- (vec (for [_ (range minefield-height)]
+  (vec (for [_ (range minefield-height)]
         (vec (for [_ (range minefield-width)]
                {:mine? (mine?) :flipped? false})))))
 
@@ -33,56 +33,76 @@
        count))
 
 (def app-state
-  (atom (generate-minefield)))
+  (atom {:minefield (generate-minefield)}))
 
 (defn lost? []
-  (some #(and (:flipped? %) (:mine? %)) (flatten @app-state)))
+  (some #(and (:flipped? %) (:mine? %)) (flatten (:minefield @app-state))))
 
 (defn won? []
-  (every? #(or (:flipped? %) (:mine? %)) (flatten @app-state)))
+  (every? #(or (:flipped? %) (:mine? %)) (flatten (:minefield @app-state))))
+
+(defn read [{:keys [state] :as env} key params]
+  (let [st @state]
+    (if-let [[_ value] (find st key)]
+      {:value value}
+      {:value :not-found})))
+
+(defn mutate [{:keys [state] :as env} key {:keys [x y] :as params}]
+  (if (= 'flip key)
+    {:value {:keys [:minefield]}
+     :action #(swap! state update-in [:minefield x y :flipped? (constantly true)])}
+    {:value :not-found}))
 
 (defn flip-cell! [minefield [x y]]
-  (swap! app-state update-in [x y :flipped?] (constantly true))
-  (when (= (count-adjacent-mines minefield [x y]) 0)
-    (doseq [neighbour-coord (neighbour-coords minefield [x y])]
+  (swap! app-state update-in [:minefield x y :flipped?] (constantly true))
+
+  #_((when (= (count-adjacent-mines minefield [x y]) 0))
+     (doseq [neighbour-coord (neighbour-coords minefield [x y])]
       (when (not= :flipped? (get-in @app-state [x y]))
         (flip-cell! @app-state neighbour-coord)))))
 
+
 (defn cell-text [minefield coord]
+  (println minefield)
   (let [cell (get-in minefield coord)]
    (cond
     (not (:flipped? cell)) "_"
     (not (:mine? cell)) (count-adjacent-mines minefield coord)
     (:mine? cell) "☠")))
 
-(defn make-button [minefield cell x y]
+(defn make-button [this minefield cell x y]
   (dom/button
    #js {:onClick
         (fn [e]
-          (flip-cell! minefield [x y])
+          (om/transact! this `[(flip {:x ~x, :y ~y})])
           (if (lost?) (js/alert "You lost!")
             (when (won?) (js/alert "You won!"))))}
-   (cell-text minefield [x y])))
+   (cell-text (:minefield (om/props this)) [x y])))
 
-(defn make-cell [minefield x y]
+(defn make-cell [this minefield x y]
   (let [cell (-> minefield (nth x) (nth y))]
-    (make-button minefield cell x y)))
+    (make-button this minefield cell x y)))
 
-(defn make-row [minefield x]
+(defn make-row [this minefield x]
   (dom/div nil
     (->> (range (count (nth minefield x)))
-         (map #(make-cell minefield x %)))))
+         (map #(make-cell this minefield x %)))))
 
 (defui Minefield
+  static om/IQuery
+  (query [this]
+    [:minefield])
   Object
   (render [this]
-    (let [minefield (om/props this)]
+    (let [minefield (:minefield (om/props this))]
       (dom/div nil
         (->> (range (count minefield))
-             (map #(make-row minefield %)))))))
+             (map #(make-row this minefield %)))))))
 
 (def reconciler
-  (om/reconciler {:state app-state}))
+  (om/reconciler
+    {:state app-state
+     :parser (om/parser {:read read :mutate mutate})}))
 
 (om/add-root! reconciler
   Minefield (gdom/getElement "app"))
