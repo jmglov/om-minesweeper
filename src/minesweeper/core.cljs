@@ -18,6 +18,16 @@
         (vec (for [_ (range minefield-width)]
                {:mine? (mine?) :flipped? false})))))
 
+(def app-state
+  (atom {:count 0
+         :minefield (generate-minefield)}))
+
+(defn lost? []
+  (some #(and (:flipped? %) (:mine? %)) (flatten (:minefield @app-state))))
+
+(defn won? []
+  (every? #(or (:flipped? %) (:mine? %)) (flatten (:minefield @app-state))))
+
 (defn neighbour-coords [minefield [x y]]
   (for [cand-x [(dec x) x (inc x)]
         cand-y [(dec y) y (inc y)]
@@ -27,33 +37,14 @@
      coord))
 
 (defn count-adjacent-mines [minefield coord]
+  (println (str coord minefield))
   (->> coord
        (neighbour-coords minefield)
        (filter #(:mine? (get-in minefield %)))
        count))
 
-(def app-state
-  (atom {:minefield (generate-minefield)}))
-
-(defn lost? []
-  (some #(and (:flipped? %) (:mine? %)) (flatten (:minefield @app-state))))
-
-(defn won? []
-  (every? #(or (:flipped? %) (:mine? %)) (flatten (:minefield @app-state))))
-
-(defn read [{:keys [state] :as env} key params]
-  (let [st @state]
-    (if-let [[_ value] (find st key)]
-      {:value value}
-      {:value :not-found})))
-
-(defn mutate [{:keys [state] :as env} key {:keys [x y] :as params}]
-  (if (= 'flip key)
-    {:value {:keys [:minefield]}
-     :action #(swap! state update-in [:minefield x y :flipped? (constantly true)])}
-    {:value :not-found}))
-
 (defn flip-cell! [minefield [x y]]
+  (println "flip-cell!" x y)
   (swap! app-state update-in [:minefield x y :flipped?] (constantly true))
 
   #_((when (= (count-adjacent-mines minefield [x y]) 0))
@@ -63,8 +54,9 @@
 
 
 (defn cell-text [minefield coord]
-  (println minefield)
+  (println "cell-text" coord minefield)
   (let [cell (get-in minefield coord)]
+   (println cell)
    (cond
     (not (:flipped? cell)) "_"
     (not (:mine? cell)) (count-adjacent-mines minefield coord)
@@ -88,16 +80,45 @@
     (->> (range (count (nth minefield x)))
          (map #(make-cell this minefield x %)))))
 
+(defn read [{:keys [state] :as env} key params]
+  (let [st @state]
+    (if-let [[_ value] (find st key)]
+      {:value value}
+      {:value :not-found})))
+
+(defn mutate [{:keys [state]} key {:keys [x y]}]
+  (cond
+   (= 'increment key)
+   {:value {:keys [:count]}
+    :action #(swap! state update-in [:count] inc)}
+
+   (= `flip key)
+   {:value {:keys [:minefield]}
+    :action #(do
+               (println "Flipping x y")
+               (swap! state update-in [:minefield x y :flipped? (constantly true)]))}
+
+   :else
+   {:value :not-found}))
+
 (defui Minefield
   static om/IQuery
   (query [this]
-    [:minefield])
+    [:count :minefield])
   Object
   (render [this]
-    (let [minefield (:minefield (om/props this))]
+    (let [{:keys [count minefield]} (om/props this)]
+      (println (clojure.core/count minefield))
       (dom/div nil
-        (->> (range (count minefield))
-             (map #(make-row this minefield %)))))))
+        (dom/div nil
+          (dom/span nil (str "Count: " count))
+          (dom/button
+            #js {:onClick
+                 (fn [e] (om/transact! this '[(increment)]))}
+            "Click me!"))
+        (dom/div nil
+          (->> (range (clojure.core/count minefield))
+               (map #(make-row this minefield %))))))))
 
 (def reconciler
   (om/reconciler
